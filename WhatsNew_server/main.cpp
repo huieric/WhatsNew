@@ -88,6 +88,6 @@ static bool connectToDatabase(QSqlDatabase &db)
                "reason varchar(100) not null,"
                "requestTime varchar(50)"
                ")");
-    //query.exec("delete from FriendsList");
+    //query.exec("delete from Message");
     return true;
 }

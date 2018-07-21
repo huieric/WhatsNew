@@ -22,7 +22,7 @@ MainWindow::MainWindow(QSqlDatabase &db, QWidget *parent) :
     message_model->select();
     ui->messageTableView->setModel(message_model);
 
-    file_model->setTable("addList");
+    file_model->setTable("Message");
     file_model->select();
     ui->fileTableView->setModel(file_model);
 }

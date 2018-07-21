@@ -43,6 +43,7 @@ void MyThread::readData() //读取数据
     if(!in.commitTransaction())
         return;
     in >> messageType >> totalBytes;
+    qDebug() << messageType << totalBytes;
     qint8 rtype, response;
     if(messageType == 0) //接收到注册数据
     {
@@ -105,6 +106,7 @@ void MyThread::readData() //读取数据
         out << rtype << messageSize << response << error;
         socket->write(outBlock);
         socket->disconnectFromHost();
+        emit dbChanged();
         return;
     }
     if(messageType == 3) //接收到离线文件
@@ -366,15 +368,6 @@ void MyThread::readData() //读取数据
             }
             out << -1;
 
-            query.prepare("select message_id, user_from, user_to, content, time from Message where user_from = ? or user_to = ?");
-            query.addBindValue(user_id);
-            query.addBindValue(user_id);
-            if(!query.exec()) qDebug() << query.lastError().text();
-            while(query.next())
-                out << query.value(0).toInt() << query.value(1).toInt() << query.value(2).toInt()
-                    << query.value(3).toString() << query.value(4).toString();
-            out << -1;
-
             query.prepare("select file_id, user_from, user_to, file_name, file_size, file, time from File where user_from = ? or user_to = ?");
             query.addBindValue(user_id);
             query.addBindValue(user_id);
@@ -385,6 +378,20 @@ void MyThread::readData() //读取数据
                     << query.value(6).toString();
             out << -1;
         }
+
+        query.exec(QString("select * from Message where user_to = %1").arg(user_id));
+        qDebug() << QString("select * from Message where user_to = %1").arg(user_id);
+        while(query.next())
+        {
+            qDebug() << query.value(0).toInt() << query.value(1).toInt() << query.value(2).toInt()
+                << query.value(3).toString() << query.value(4).toString();
+            out << query.value(0).toInt() << query.value(1).toInt() << query.value(2).toInt()
+                << query.value(3).toString() << query.value(4).toString();
+        }
+        query.prepare("delete from Message where user_to = ?");
+        query.addBindValue(user_id);
+        if(!query.exec()) qDebug() << query.lastError().text();
+        out << -1;
 
         query.prepare("select user_from, reason from addList where user_to = ?");
         query.addBindValue(user_id);
@@ -406,7 +413,9 @@ void MyThread::readData() //读取数据
         }
         out << -1;
 
+        db.commit();
         db.close();
+        emit dbChanged();
         qDebug() << "Database connection closed...";
         socket->write(outBlock);
         socket->disconnectFromHost();
@@ -529,8 +538,7 @@ bool MyThread::receiveMessage(int user_from, int user_to, const QString &content
         qDebug() << "Database connection closed...";
         return false;
     }
-    db.commit();
-    emit dbChanged();
+    db.commit();    
     qDebug() << "Successfully insert offline message into database...";
     db.close();
     qDebug() << "Database connection closed...";
